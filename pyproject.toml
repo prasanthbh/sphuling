@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sphuling"
-version = "1.0.0"
+version = "1.0.1"
 description = "High-performance local PySpark-compatible analytics engine powered by DataFusion, Arrow, and DuckDB"
 readme = "README.md"
 requires-python = ">=3.10"
