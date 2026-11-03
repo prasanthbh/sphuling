@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sphuling"
+version = "0.1.0"
+description = "High-performance local PySpark-compatible analytics engine powered by DataFusion, Arrow, and DuckDB"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "datafusion>=55.0.0",
+    "duckdb>=2.0.0",
+    "pyarrow>=26.0.0",
+    "sqlglot>=25.0.0",
+    "pandas>=2.0.0",
+    "cloudpickle>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

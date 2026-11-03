@@ -1,0 +1,10 @@
+.venv/
+.sphuling/spill/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
