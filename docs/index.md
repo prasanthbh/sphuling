@@ -55,6 +55,7 @@ Detailed reference with copy-pasteable examples for every single feature:
 7. **[`04.07` Data Types & Schemas](./04_api_reference/07_types.md)**: `StructType`, `StructField`, primitives, complex types, Spark DDL parsing (`StructType.fromDDL`), and Arrow schema conversion.
 8. **[`04.08` I/O Connectors (`read` & `write`)](./04_api_reference/08_io_connectors.md)**: Parquet, Feather/Arrow, CSV, JSON, partitioned writes (`partitionBy`), and save modes.
 9. **[`04.09` Spark SQL Engine](./04_api_reference/09_spark_sql.md)**: SQL query execution, CTEs, subqueries, backtick identifiers, and temporary view management.
+10. **[`04.10` PySpark API Compatibility Matrix](./04_api_reference/10_compatibility_matrix.md)**: Comprehensive support status, limitations, and semantic parity matrix for all PySpark APIs.
 
 ---
 

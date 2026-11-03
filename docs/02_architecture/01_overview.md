@@ -34,18 +34,18 @@ Sphuling is architected from the ground up as an **embedded, in-process, vectori
        |  - Cost-Based Physical Planner (Hash Joins, Sorting)            |
        |  - Multithreaded Vectorized Pipeline Execution (SIMD Rust)      |
        +-----------------------------------------------------------------+
-                        |                                 |
-                        v                                 v
-       +---------------------------------+   +---------------------------+
-       |   Apache Arrow C Data Interface |   |   DuckDB SQL Extension    |
-       |   - Zero-Copy RecordBatches     |   |   - Complex SQL Views     |
-       |   - PyArrow / Pandas Interop    |   |   - Native Table Providers|
-       +---------------------------------+   +---------------------------+
-                        |
-                        v
+                                       |
+                                       v
+       +-----------------------------------------------------------------+
+       |                   Apache Arrow C Data Interface                 |
+       |  - Zero-Copy RecordBatches via PyCapsule / C ABI                |
+       |  - Seamless PyArrow and Minimal-Overhead Pandas Interop         |
+       +-----------------------------------------------------------------+
+                                       |
+                                       v
        +-----------------------------------------------------------------+
        |              Storage, Connectors & Disk Spill Subsystem         |
-       |  Parquet | Feather/Arrow IPC | CSV | JSON | SQLite | NVMe Spill |
+       |  Parquet | Feather/Arrow IPC | CSV | JSON | NVMe Spill          |
        +-----------------------------------------------------------------+
 ```
 
@@ -54,7 +54,7 @@ Sphuling is architected from the ground up as an **embedded, in-process, vectori
 ## 2. Architectural Subsystems
 
 ### Subsystem 1: PySphuling API Facade
-Provides 1:1 structural equivalence with Apache Spark's PySpark API:
+Provides PySpark API parity for single-node development:
 - **`SphulingSession` (aliased as `SparkSession`):** Entry point managing execution contexts, configuration, and catalogs.
 - **`DataFrame`:** Lazy abstraction exposing over 40 standard transformations (`select`, `filter`, `withColumn`, `join`, `groupBy`, `union`) and actions (`collect`, `show`, `count`, `toPandas`, `toArrow`).
 - **`Column`:** Wraps DataFusion expressions with full Python arithmetic, logical, and comparison operator overloading (`+`, `-`, `*`, `/`, `==`, `!=`, `&`, `|`, `~`).
@@ -74,11 +74,10 @@ Rather than executing queries across distributed network worker daemons or JVM t
 - **Parallel Work Stealing:** Uses a work-stealing threadpool scaled to `sphuling.executor.cores` to execute parallel tasks across physical CPU cores without Python GIL contention.
 
 ### Subsystem 4: In-Process Zero-Copy Memory Bridge
-- PySpark uses sockets (`Py4J`) to pass rows between Python and the JVM.
-- Sphuling utilizes the **Apache Arrow C Data Interface** (PyCapsule / C ABI). Python, Rust, and C++ access the exact same contiguous physical memory buffers via memory pointers.
-- Calling `.toPandas()` or `.toArrow()` involves **zero memory copying**, achieving sub-millisecond data interchange.
+- PySpark uses sockets (`Py4J`) to exchange data between Python and the JVM for collections and UDFs.
+- Sphuling utilizes the **Apache Arrow C Data Interface** (PyCapsule / C ABI). Python and Rust access the exact same contiguous physical memory buffers via memory pointers.
+- Calling `.toArrow()` involves **zero memory copying**; exporting to Pandas achieves minimal overhead (zero-copy when ArrowDtype-compatible).
 
 ### Subsystem 5: Resource Governor & NVMe Disk Spilling
-- Bounded memory pool allocator (`sphuling.executor.memory`) ensures queries cannot exceed allocated workstation RAM.
-- When aggregations or large hash joins demand more memory than allocated, the engine automatically spills intermediate sorted partitions to local scratch NVMe storage (`.sphuling/spill/`), preventing OOM crashes.
-
+- Bounded memory pool allocator (`sphuling.executor.memory`) budgets RAM for active query execution.
+- When aggregations, sorts, or large hash joins demand more memory than allocated, the engine automatically spills intermediate sorted partitions to local scratch NVMe storage (`./.sphuling/spill/`), preventing memory exhaustion.

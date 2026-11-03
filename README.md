@@ -2,70 +2,83 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Engine: DataFusion & Arrow](https://img.shields.io/badge/Engine-DataFusion%20%7C%20Arrow-orange.svg)](https://arrow.apache.org/datafusion/)
+[![Engine: Apache DataFusion](https://img.shields.io/badge/Engine-Apache%20DataFusion-orange.svg)](https://arrow.apache.org/datafusion/)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-prasanthbh%2Fsphuling-181717.svg?logo=github)](https://github.com/prasanthbh/sphuling)
 
-**Sphuling** is an ultra-fast, local-first analytics engine and DataFrame library.
+**Sphuling** (Bengali: স্ফুলিঙ্গ / Sanskrit: स्फुलिंग, meaning *"Spark"*) is an ultra-fast, local-first analytics engine and DataFrame library.
 
-It delivers **100% of the single-node developer ergonomics, DataFrame transformations, column expressions, analytical window functions, and Spark SQL query capabilities of Apache Spark / PySpark** directly to your workstation—completely free of JVM dependencies, cluster management overhead, or Py4J socket serialization.
+It delivers **high-fidelity single-node PySpark compatibility for core DataFrame and Spark SQL workloads** directly to your workstation—completely free of JVM dependencies, cluster management overhead, or Py4J socket serialization.
 
-Under the hood, Sphuling executes queries at C++/Rust speeds powered by **Apache DataFusion**, **Apache Arrow**, and **DuckDB**.
+Under the hood, Sphuling executes queries at compiled Rust speeds powered by **Apache DataFusion** and **Apache Arrow**.
 
 ---
 
 ## ⚡ Why You Should Use Sphuling
 
-Running Apache Spark in local mode (`local[*]`) was never designed for developer agility—it runs a multi-node cluster architecture simulated inside a heavy Java Virtual Machine. Sphuling replaces this bottleneck with an in-process, native-compiled analytics engine built specifically for modern multi-core workstations and laptops.
+Running Apache Spark in local mode (`local[*]`) was never designed for developer agility—it runs a cluster architecture simulated inside a heavy Java Virtual Machine. Sphuling replaces this bottleneck with an in-process, native-compiled analytics engine built specifically for modern multi-core workstations, laptops, and CI/CD runners.
 
-### Key Advantages:
+### Core Value Propositions:
 
-* **🚀 Sub-2-Millisecond Instant Boot:** Starts up in **1.33 ms** (vs. 5,000–15,000 ms for PySpark). Ideal for interactive development, fast CI/CD pipelines, CLI utilities, and serverless/Lambda environments.
-* **☕ Zero Java / JVM Dependencies:** Pure Python and native wheels. No Java JRE/JDK installation, no `JAVA_HOME` configuration, and zero Java Garbage Collection (GC) pauses.
-* **⚡ Vectorized Rust Execution:** Powered by Apache DataFusion with SIMD vectorization and multi-threaded Tokio work-stealing execution. Processes 1,000,000 rows in **5.53 ms**.
-* **🏹 Zero-Copy Arrow Shared Memory:** Interchanges data between Python, Rust, and C++ via the **Apache Arrow C Data Interface** (PyCapsule / C ABI). Calling `.toPandas()` or `.toArrow()` involves zero byte serialization or socket overhead.
-* **🛡️ Predictable Resource Governance & Disk Spilling:** Set explicit workstation CPU and RAM bounds (`sphuling.executor.cores` and `sphuling.executor.memory`). If an aggregation or hash join exceeds memory limits, it gracefully spills intermediate partitions to NVMe scratch storage (`./.sphuling/spill/`) instead of crashing with a fatal `OutOfMemoryError`.
-* **🔍 Universal Zero-Load Schema Extraction:** Inspect schemas in $O(1)$ time by reading only Parquet/Arrow binary footers, CSV headers with bounded sample sniffing, or SQL `LIMIT 0`—never scanning the full dataset just to inspect column names.
-* **🔄 100% Drop-In PySpark Compatibility:** Swap your import to `import pysphuling as pyspark` and run existing PySpark pipelines without rewriting a single line of business logic.
-
-### Performance & Ergonomics At a Glance
-
-| Metric / Dimension | PySpark (Local Mode) | Sphuling (`pysphuling`) |
-| :--- | :--- | :--- |
-| **Session Cold Startup** | 5,000 – 15,000 ms | **1.33 ms** (Instant) |
-| **1M Rows Execution** | 800 – 2,500 ms | **5.53 ms** (SIMD Vectorized Rust) |
-| **Runtime Requirement** | Java JRE / JDK (Mandatory) | **Zero (Native Python wheels)** |
-| **Data Interchange** | Py4J TCP Socket marshaling | **Zero-Copy Arrow C Data Interface** |
-| **Schema Introspection** | Often triggers full table scans | **Universal Zero-Load ($O(1)$ footers)** |
-| **Out-of-Memory Behavior** | Fatal `OutOfMemoryError` / crash | **Graceful NVMe disk spilling** |
-| **Garbage Collection** | Stop-The-World JVM GC pauses | **Zero GC pauses** (Rust ownership model) |
+* **🚀 Sub-2-Millisecond Instant Boot:** Starts up in **1.33 ms** (vs. 5,000–15,000 ms for PySpark). Ideal for interactive development, fast CI/CD unit testing, CLI utilities, and serverless/Lambda environments.
+* **☕ Zero Java / JVM Dependencies:** Pure Python API with native compiled wheels. No Java JRE/JDK installation, no `JAVA_HOME` configuration, and zero Java Garbage Collection (GC) pauses.
+* **⚡ Vectorized Native Rust Execution:** Powered by Apache DataFusion with SIMD vectorization and multi-threaded Tokio work-stealing execution. In-memory synthetic 1M-row filter and aggregation queries complete in **5.53 ms** on an 8-core CPU.
+* **🏹 Zero-Copy Arrow Shared Memory:** Interchanges data between Python, Rust, and C++ via the **Apache Arrow C Data Interface** (PyCapsule / C ABI). Calling `.toArrow()` involves zero memory copying; `.toPandas()` uses zero-copy memory buffers where ArrowDtype is supported.
+* **🛡️ Predictable Resource Governance & Disk Spilling:** Set explicit workstation CPU and RAM bounds (`sphuling.executor.cores` and `sphuling.executor.memory`). DataFusion's `GreedyMemoryPool` manages memory budgets for heavy operators (external sort, hash join, hash aggregation) and spills intermediate partitions to NVMe scratch storage (`./.sphuling/spill/`).
+* **🔍 Metadata-Driven & Fast Schema Inspection:** Inspect schemas in $O(1)$ time by reading binary footers for Parquet and Arrow IPC files, or using bounded sample sniffing for CSV/JSON—avoiding scanning full datasets just to discover column names.
+* **🔄 High-Fidelity PySpark API Parity:** Write familiar PySpark code (`from pysphuling.sql import SparkSession, functions as F, Window, types as T`) with full support for analytical windowing, data cleaning (`df.na`), summary statistics (`df.stat`), and Spark SQL expressions.
 
 ---
 
-## 📊 Comparison with Competitors
+## 📊 Comprehensive Competitor Comparison
 
-Sphuling fills a unique and critical gap in the data ecosystem: **full PySpark syntax parity combined with native Rust/Arrow single-node performance**.
+Sphuling fills a unique and critical gap in the data ecosystem: **bringing familiar PySpark DataFrame ergonomics to a lightweight, single-node native execution engine**.
 
 ### Feature & Capability Matrix
 
-| Feature / Dimension | **Sphuling (`pysphuling`)** | **PySpark (Local)** | **DuckDB (Python)** | **Polars (LazyFrame)** | **Pandas** | **Daft** | **Modin** |
+| Feature / Dimension | **Sphuling (`pysphuling`)** | **PySpark (Local)** | **DuckDB (Native Python)** | **DuckDB Spark (`experimental.spark`)** | **Polars (LazyFrame)** | **Pandas** | **Daft** |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **API Paradigm** | **100% PySpark Syntax** | PySpark (Catalyst) | DuckDB Relational/SQL | Polars Custom DSL | Pandas Index/Eager | Custom DataFrame DSL | Pandas API |
-| **Startup Latency** | **1.33 ms** (Instant) | 5,000 – 15,000 ms | < 5 ms | < 5 ms | < 50 ms | ~100 ms | 1,000 – 3,000 ms |
-| **Execution Core** | **DataFusion (Rust) + DuckDB**| JVM + Py4J TCP Sockets | Native C++ Vectorized | Native Rust Vectorized | Python / C (Eager) | Native Rust Vectorized | Ray / Dask Engine |
-| **Memory Model** | **Apache Arrow (C Data ABI)** | Java Heap / Py4J bytes | DuckDB Vectors / Arrow | Polars Chunked / Arrow | NumPy / Python Objects | Apache Arrow | Arrow / Ray Objects |
-| **JVM Dependency** | **Zero (No Java needed)** | **Mandatory (JRE/JDK)** | Zero | Zero | Zero | Zero | Zero |
-| **PySpark Drop-in?**| **Yes (`import pysphuling as pyspark`)** | Native | **No** (Must rewrite to SQL) | **No** (Must rewrite to Polars) | **No** (Different API) | **No** (Different API) | **No** (Pandas API) |
-| **Lazy Execution DAG**| **Yes (LogicalPlan DAG)** | Yes (Catalyst DAG) | Yes (Query Graph) | Yes (LazyFrame) | **No** (Eager execution) | Yes (Logical DAG) | Partial (Dask/Ray DAG) |
-| **Zero-Load Schema** | **Yes ($O(1)$ metadata)** | Partial (Scans data) | Partial (Sniffers) | Partial (Inspection) | **No** (Loads full file) | Partial | **No** |
-| **Workstation Governor**| **Yes (`cores` + `mem` + spill)** | Complex JVM tuning | Partial (`SET threads`) | Partial | **No** | Partial | Complex (Ray cluster) |
-| **Spark SQL Dialect**| **Yes (Transpiled via sqlglot)**| Native | Partial (DuckDB SQL) | **No** (Basic SQL only) | **No** | Partial | **No** |
+| **API Paradigm** | **PySpark-Compatible** | PySpark (Catalyst) | DuckDB Relational/SQL | Partial PySpark Emulation | Polars Custom DSL | Pandas Index/Eager | Custom DataFrame DSL |
+| **Execution Engine** | **Apache DataFusion (Rust)**| JVM + Local Threads | Native C++ Vectorized | DuckDB C++ Engine | Native Rust Vectorized | Python / C (Eager) | Native Rust Vectorized |
+| **Memory Model** | **Apache Arrow (C Data ABI)**| Java Heap / Py4J Socket | DuckDB Vectors / Arrow | DuckDB Vectors / Arrow | Polars Chunked / Arrow | NumPy / Python Objects | Apache Arrow |
+| **JVM Dependency** | **Zero (Native Python wheel)**| **Mandatory (JRE/JDK)** | Zero | Zero | Zero | Zero | Zero |
+| **PySpark Syntax Drop-in?**| **High Parity (Core APIs)** | Native | **No** (Must rewrite to SQL) | **Partial / Incomplete** | **No** (Must rewrite to Polars)| **No** (Different API) | **No** (Different API) |
+| **Analytical Windowing (`Window`)**| **Supported (`Window.partitionBy`)**| Native | SQL Window functions | ❌ **Missing (`ImportError`)** | Polars `over()` DSL | ❌ Rolling / GroupBy only | Partial |
+| **Data Cleaning (`df.na`)**| **Supported (`drop`, `fill`, `replace`)**| Native | SQL `COALESCE` / `CASE` | ❌ **Missing** | Polars `fill_null()` DSL | Pandas `.fillna()` / `.dropna()`| Partial |
+| **Summary & Stats (`df.stat`)**| **Supported (`corr`, `crosstab`)**| Native | Custom SQL queries | ❌ **Missing** | Polars custom expressions | Pandas `.corr()` / `.describe()`| Partial |
+| **Spark SQL Dialect**| **Transpiled via sqlglot** | Native | DuckDB SQL Dialect | DuckDB SQL Dialect | Basic SQL only | ❌ | Partial |
+| **Configuration Engine** | **Active (`SphulingConf`)** | Native (`SparkConf`) | `SET key = val` | ❌ **Raises `NotImplementedError`**| Environment variables | ❌ | Config object |
+| **Resource Bounds & Disk Spill** | **Configurable (`cores` + `memory`)**| Complex JVM heap tuning | `SET max_memory`, auto-spill | `SET max_memory`, auto-spill | Streaming out-of-core | ❌ Crashes on RAM limits | Spill support |
 
-### Deep Dive vs. Specific Engines
+---
 
-* **vs. PySpark (Local Mode):** PySpark is architected for distributed clusters across hundreds of machines; on a laptop, it wastes gigabytes of RAM on JVM overhead and serializes data across sockets. Sphuling gives you the exact same PySpark syntax running natively on your hardware at $10\times$ to $50\times$ the speed.
-* **vs. DuckDB:** DuckDB is a world-class SQL engine, but its Python API is relational/SQL-based. It lacks PySpark's DataFrame semantics (`functions as F`, `Column` math expressions, `Window.partitionBy().orderBy()`, `types as T`, `DataFrameReader`/`Writer`). Sphuling uses DuckDB and DataFusion under the hood while providing the complete PySpark developer experience.
-* **vs. Polars:** Polars is fast, but introduces a completely different DSL (`pl.col().alias()`, custom windowing, different join semantics). Porting existing Spark pipelines to Polars requires costly, bug-prone codebase rewrites. Sphuling runs your existing PySpark code with zero rewrites.
-* **vs. Pandas:** Pandas is eager, single-threaded, and causes out-of-memory crashes on larger-than-RAM datasets. Sphuling is lazy, SIMD-vectorized across all CPU cores, optimizes query plans, and gracefully spills to disk.
+### Deep-Dive Comparisons
+
+#### 1. Sphuling vs. Apache Spark (Local Mode)
+* **PySpark Local Overhead:** Apache Spark was designed for multi-node clusters. When running locally, it spins up a full JVM, consumes 1–2 GB of baseline RAM, requires setting up Java environments, and incurs 5–15 second cold start delays.
+* **The Sphuling Difference:** Sphuling runs in-process in native Rust. Queries execute without JVM boot delays or Py4J gateway handshakes.
+* **When to choose PySpark:** Multi-node clusters spanning terabytes to petabytes of data, Structured Streaming, or integration with Hive/Hadoop clusters.
+* **When to choose Sphuling:** Local ETL development, single-node pipelines, CI/CD testing, and serverless functions.
+
+#### 2. Sphuling vs. DuckDB (Native SQL / Relational API)
+* **DuckDB's Strengths:** DuckDB is an outstanding in-process analytical SQL database with vectorized C++ execution and out-of-core query processing.
+* **The Gap for Spark Engineers:** DuckDB is fundamentally a SQL engine. Its Python API is relational and SQL-centric. It lacks PySpark DataFrame semantics: no `functions as F`, no `Column` expression arithmetic (`F.col("a") + F.col("b")`), no `Window.partitionBy().orderBy()`, no `types as T`, and no `DataFrameReader`/`Writer`.
+* **Verdict:** Use DuckDB directly if your pipelines are written in pure SQL. Use Sphuling if you want PySpark DataFrame code, modular transformation functions, and familiar PySpark idioms running on top of modern native execution.
+
+#### 3. Sphuling vs. DuckDB Spark (`duckdb.experimental.spark`)
+While DuckDB includes an experimental PySpark module (`duckdb.experimental.spark`), it is an incomplete prototype with major limitations:
+* **No `Window` Module:** `from duckdb.experimental.spark.sql import Window` raises an `ImportError`. `Column.over()` is not implemented. Standard PySpark windowing, ranking, and rolling aggregations cannot be run.
+* **Missing DataFrame Utilities:** DuckDB Spark has no `df.na` (`drop`, `fill`, `replace`), no `df.stat` (`corr`, `cov`, `crosstab`), no `df.selectExpr()`, no `df.describe()`, no `df.repartition()`, and no `StructType.fromDDL()`.
+* **Stubbed Configuration:** Classes like `SparkConf` and `RuntimeConfig` (`spark.conf`) raise `NotImplementedError` or `ContributionsAcceptedError`.
+* **Sphuling Advantage:** Sphuling is **100% committed to PySpark developer ergonomics**, providing complete implementations of `Window`, `Column.over()`, `df.na`, `df.stat`, `df.selectExpr`, and active configuration parsing.
+
+#### 4. Sphuling vs. Polars
+* **Polars Strengths:** Polars is a fast, mature DataFrame library with an expressive custom Python DSL and streaming engine.
+* **The Cost of Polars for Spark Teams:** Polars uses an entirely different syntax: `pl.col().alias()`, different method names, distinct join rules, and no Spark SQL dialect support. Migrating an existing PySpark codebase to Polars requires months of engineering rewrites.
+* **Verdict:** Choose Polars for greenfield projects where you prefer the Polars DSL. Choose Sphuling when you have existing PySpark code, require Spark API familiarity, or want Spark SQL compatibility without Java.
+
+#### 5. Sphuling vs. Pandas
+* **Pandas Limitations:** Pandas primarily relies on eager execution (no logical query planning, no automatic filter pushdown, no projection pruning). On multi-gigabyte datasets, Pandas often creates intermediate memory copies, leading to out-of-memory crashes.
+* **The Sphuling Difference:** Sphuling builds a lazy query plan, executes multithreaded SIMD operations across all CPU cores in compiled Rust, bounds execution memory with disk spilling, and provides sub-millisecond zero-copy `.toArrow()` / `.toPandas()` export when needed.
 
 ---
 
@@ -113,7 +126,7 @@ sphuling = (
     .getOrCreate()
 )
 
-# 2. Universal Zero-Load Schema Inspection (O(1) footer reading)
+# 2. Fast Metadata-Driven Schema Inspection (O(1) footer reading)
 df = sphuling.read.parquet("data/employees.parquet")
 df.printSchema()
 
@@ -133,28 +146,24 @@ transformed_df = (
     .orderBy(F.col("avg_salary").desc())
 )
 
-# 4. Trigger Vectorized Execution
+# 4. Trigger Vectorized Native Execution
 transformed_df.show()
 
-# 5. Zero-Copy Export to Pandas or Apache Arrow
+# 5. Export to Pandas or Apache Arrow
 arrow_table = transformed_df.toArrow()
 pandas_df = transformed_df.toPandas()
 ```
 
 ---
 
-### 100% Drop-in PySpark Migration
+### Drop-in PySpark Migration
 
-Migrate existing PySpark projects with a single line change—no other code modifications required:
+Migrate existing PySpark code for supported DataFrame transformations:
 
 ```python
-# Before:
-# import pyspark
-# from pyspark.sql import SparkSession, functions as F, Window
-
-# After (Drop-in):
+# Swap your import to pysphuling:
 import pysphuling as pyspark
-from pyspark.sql import SparkSession, functions as F, Window
+from pysphuling.sql import SparkSession, functions as F, Window
 
 # Your existing PySpark pipeline runs unchanged with zero JVM overhead:
 spark = SparkSession.builder.appName("ExistingPipeline").getOrCreate()
@@ -172,7 +181,7 @@ result.show()
 
 ### Spark SQL Queries
 
-Sphuling includes a SQL transpiler that executes Spark-flavored SQL on top of DataFusion and DuckDB:
+Sphuling includes a SQL transpiler that executes Spark-flavored SQL on top of DataFusion:
 
 ```python
 # Register temporary views
@@ -198,7 +207,7 @@ report.show()
 
 ## 📖 Complete Documentation Index
 
-All in-depth architecture guides, API references, comparisons, and migration tutorials are available on GitHub:
+All architecture guides, API references, comparisons, and migration tutorials are available on GitHub:
 
 ### `01` Getting Started
 1. **[01.01 Introduction & Philosophy](https://github.com/prasanthbh/sphuling/blob/main/docs/01_getting_started/01_introduction.md)**: What is Sphuling, project philosophy, why PySpark local is slow, and core value proposition.
@@ -209,14 +218,14 @@ All in-depth architecture guides, API references, comparisons, and migration tut
 1. **[02.01 System Architecture Overview](https://github.com/prasanthbh/sphuling/blob/main/docs/02_architecture/01_overview.md)**: Breakdown of the Python facade, AST planner, DataFusion SIMD execution engine, and Arrow memory bridge.
 2. **[02.02 How Sphuling Works Under the Hood](https://github.com/prasanthbh/sphuling/blob/main/docs/02_architecture/02_how_it_works.md)**: Step-by-step lifecycle of a query from lazy DAG construction to physical multithreaded SIMD execution.
 3. **[02.03 Workstation Resource Governance & Disk Spilling](https://github.com/prasanthbh/sphuling/blob/main/docs/02_architecture/03_memory_and_resources.md)**: How `sphuling.executor.cores` and `sphuling.executor.memory` enforce limits and gracefully spill to disk.
-4. **[02.03.5 Parallel Execution & Executor Architecture](https://github.com/prasanthbh/sphuling/blob/main/docs/02_architecture/03.5_parallel_execution_and_executor_architecture.md)**: Detailed breakdown of in-process Tokio work-stealing multithreading, cores vs memory governance, and why single-node engines avoid multi-process executors.
-5. **[02.04 Universal Zero-Load Schema Extraction Engine](https://github.com/prasanthbh/sphuling/blob/main/docs/02_architecture/04_zero_load_schema.md)**: Technical mechanics of $O(1)$ schema discovery across Parquet/Arrow footers, CSV sniffers, and SQL `LIMIT 0`.
+4. **[02.03.5 Parallel Execution & Concurrency Architecture](https://github.com/prasanthbh/sphuling/blob/main/docs/02_architecture/03.5_parallel_execution_and_executor_architecture.md)**: Detailed breakdown of in-process Tokio work-stealing multithreading, cores vs memory governance, and why single-node engines avoid multi-process executors.
+5. **[02.04 Universal Zero-Load Schema Extraction Engine](https://github.com/prasanthbh/sphuling/blob/main/docs/02_architecture/04_zero_load_schema.md)**: Technical mechanics of schema discovery across Parquet/Arrow footers, CSV sniffers, and SQL `LIMIT 0`.
 
 ### `03` Ecosystem & Comparisons
-1. **[03.01 Competitive Analysis](https://github.com/prasanthbh/sphuling/blob/main/docs/03_comparison/01_competitive_analysis.md)**: In-depth comparison matrix against **PySpark, DuckDB, Polars, Pandas, Daft, and Modin**.
-2. **[03.02 What Sphuling Has That Competitors Don't Have](https://github.com/prasanthbh/sphuling/blob/main/docs/03_comparison/02_unique_advantages.md)**: Why Sphuling is the only engine combining 100% PySpark syntax with native vectorized Rust/Arrow execution and zero JVM overhead.
+1. **[03.01 Competitive Analysis](https://github.com/prasanthbh/sphuling/blob/main/docs/03_comparison/01_competitive_analysis.md)**: In-depth comparison matrix against **PySpark, DuckDB, DuckDB Spark, Polars, Pandas, and Daft**.
+2. **[03.02 What Sphuling Has That Competitors Don't Have](https://github.com/prasanthbh/sphuling/blob/main/docs/03_comparison/02_unique_advantages.md)**: Why Sphuling is the only engine combining PySpark syntax with native vectorized Rust/Arrow execution and zero JVM overhead.
 
-### `04` API Reference (with Code Examples)
+### `04` API Reference & Compatibility
 1. **[04.01 SphulingSession & Builder](https://github.com/prasanthbh/sphuling/blob/main/docs/04_api_reference/01_session.md)**: Builder methods, `.sql()`, `.createDataFrame()`, `.range()`, `.table()`, and `.catalog`.
 2. **[04.02 DataFrame Transformations](https://github.com/prasanthbh/sphuling/blob/main/docs/04_api_reference/02_dataframe_transformations.md)**: Guide with code examples for `.select()`, `.filter()`, `.withColumn()`, `.join()`, `.union()`, `.groupBy().agg()`, `.na`, `.stat`, etc.
 3. **[04.03 DataFrame Actions](https://github.com/prasanthbh/sphuling/blob/main/docs/04_api_reference/03_dataframe_actions.md)**: Eager execution actions: `.collect()`, `.show()`, `.count()`, `.first()`, `.head()`, `.toPandas()`, `.toArrow()`, `.describe()`.
@@ -226,13 +235,17 @@ All in-depth architecture guides, API references, comparisons, and migration tut
 7. **[04.07 Data Types & Schemas](https://github.com/prasanthbh/sphuling/blob/main/docs/04_api_reference/07_types.md)**: `StructType`, `StructField`, primitives, complex types (`ArrayType`, `MapType`), DDL parsing, and Arrow schema conversion.
 8. **[04.08 I/O Connectors (`read` & `write`)](https://github.com/prasanthbh/sphuling/blob/main/docs/04_api_reference/08_io_connectors.md)**: Parquet, Feather/Arrow, CSV, JSON, partitioned writes (`partitionBy`), and save modes.
 9. **[04.09 Spark SQL Engine](https://github.com/prasanthbh/sphuling/blob/main/docs/04_api_reference/09_spark_sql.md)**: SQL query execution, CTEs, subqueries, backtick identifiers, and temporary view management.
+10. **[04.10 PySpark API Compatibility Matrix](https://github.com/prasanthbh/sphuling/blob/main/docs/04_api_reference/10_compatibility_matrix.md)**: Transparent support status and semantic parity matrix across all PySpark APIs.
 
 ### `05` Migration
 1. **[05.01 Drop-in Migration Guide from PySpark](https://github.com/prasanthbh/sphuling/blob/main/docs/05_migration/01_from_pyspark.md)**: How to switch existing PySpark scripts with a single import line (`import pysphuling as pyspark`).
 
-### `06` Internal Code Reference & History
-1. **[06.01 Architecture & Components Reference](https://github.com/prasanthbh/sphuling/blob/main/docs/code_reference/index.md)**: Technical decisions, subsystem mapping, and file structure.
-2. **[06.02 Historical Timeline & Benchmarks](https://github.com/prasanthbh/sphuling/blob/main/docs/code_reference/timeline.md)**: Chronological development log, validation results, and benchmark records.
+### `06` Publishing & Distribution
+1. **[06.01 Publishing to PyPI Guide](https://github.com/prasanthbh/sphuling/blob/main/docs/06_publishing/01_pypi_submission.md)**: Step-by-step walkthrough to build distribution wheels, test on TestPyPI, publish to PyPI, and enable automated GitHub Actions releases.
+
+### `07` Internal Code Reference & History
+1. **[07.01 Architecture & Components Reference](https://github.com/prasanthbh/sphuling/blob/main/docs/code_reference/index.md)**: Technical decisions, subsystem mapping, and file structure.
+2. **[07.02 Historical Timeline & Benchmarks](https://github.com/prasanthbh/sphuling/blob/main/docs/code_reference/timeline.md)**: Chronological development log, validation results, and benchmark records.
 
 ### 🤖 AI Agent Skill
 * **[Sphuling AI Agent Skill (`skills/sphuling/SKILL.md`)](https://github.com/prasanthbh/sphuling/blob/main/skills/sphuling/SKILL.md)**: Formal agent skill definition with trigger conditions, operational rules, common code patterns, and error prevention guidelines.
@@ -246,7 +259,7 @@ Run the comprehensive unit and compatibility test suite:
 pytest tests/
 ```
 
-Run latency and engine startup benchmarks:
+Run latency and synthetic benchmark workloads:
 ```bash
 python tests/benchmarks/benchmark_speed.py
 ```

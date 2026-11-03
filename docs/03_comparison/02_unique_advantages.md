@@ -1,53 +1,53 @@
 # What Sphuling Has That Competitors Don't Have
 
-Why should an engineering team or data practitioner choose Sphuling? Here is the unique convergence of capabilities that no other single tool in the data ecosystem possesses simultaneously.
+Why should an engineering team or data practitioner choose Sphuling? Here is the unique convergence of capabilities that distinguishes Sphuling in the modern data ecosystem.
 
 ---
 
-## 1. The PySpark API Without the JVM
-No other native Rust or C++ engine provides full PySpark API compatibility:
-- **DuckDB** has no PySpark DataFrame API.
-- **Polars** has a completely distinct syntax.
-- **DataFusion Python** has its own API that diverges significantly from PySpark.
-- **PySpark** has the API, but requires the Java Virtual Machine.
+## 1. High-Fidelity PySpark API Without the JVM
+No other native Rust or C++ engine provides a dedicated, production-focused PySpark DataFrame experience:
+- **DuckDB Native** has no PySpark DataFrame API (pure SQL or relational expressions).
+- **DuckDB Spark (`duckdb.experimental.spark`)** is an incomplete side-project missing the `Window` class, `Column.over()`, `df.na`, `df.stat`, and active config management.
+- **Polars** requires learning a completely distinct syntax and rewriting existing codebases.
+- **DataFusion Python** has its own API that diverges significantly from PySpark conventions.
+- **PySpark** provides the API, but requires the Java Virtual Machine (JRE/JDK).
 
-**Sphuling is the ONLY engine that delivers 100% PySpark DataFrame syntax (`SphulingSession`, `Column`, `functions as F`, `types as T`, `Window`) running on a pure native Rust/C++ execution core.**
+**Sphuling is specifically engineered to deliver familiar PySpark DataFrame syntax (`SphulingSession`, `Column`, `functions as F`, `types as T`, `Window`) running on an in-process, compiled Rust execution core.**
 
 ---
 
-## 2. Universal Zero-Load Schema Extraction ($O(1)$ Introspection)
-In standard tools, inspecting a schema often triggers a scan:
+## 2. Fast Metadata-Driven & Sample-Based Schema Inspection
+In standard workflows, inspecting a schema often triggers a slow scan:
 - In PySpark, `spark.read.csv(..., inferSchema=True)` reads the entire file.
 - In Pandas, `pd.read_csv()` loads the full file into memory.
 
-**Sphuling extracts exact `StructType` schemas from any source type without scanning full datasets:**
-- Reads only binary footers for Parquet/Arrow ($O(1)$).
-- Uses bounded byte-range sniffers ($\le 64$ KB) for CSV.
-- Samples small chunks for JSON.
-- Uses `LIMIT 0` for SQL databases.
-- Reads Delta commit manifests for Delta Lake.
+**Sphuling extracts schemas without scanning entire datasets:**
+- Reads binary metadata footers for Parquet and Arrow IPC files ($O(1)$).
+- Uses bounded byte-range sniffers ($\le 64$ KB) and header parsers for CSV files.
+- Samples representative row chunks for JSON files.
+- Uses `LIMIT 0` prepared statements for relational databases.
 
 ---
 
-## 3. Workstation Resource Bounds with Automatic Disk Spilling
-- In **Pandas**, exceeding RAM results in an immediate crash (`MemoryError`).
+## 3. Workstation Resource Bounds with Operator Disk Spilling
+- In **Pandas**, exceeding physical RAM results in an immediate crash (`MemoryError`).
 - In **PySpark**, exceeding RAM throws a fatal `java.lang.OutOfMemoryError` or triggers severe JVM GC thrashing.
-- In **Sphuling**, developers configure exact limits (`sphuling.executor.cores` and `sphuling.executor.memory`), and intermediate partitions are safely spilled to local NVMe SSD (`.sphuling/spill/`). Queries complete predictably without crashing the machine.
+- In **Sphuling**, developers configure explicit bounds (`sphuling.executor.cores` and `sphuling.executor.memory`), and intermediate partitions for heavy operators (sort, hash join, hash aggregation) are safely spilled to NVMe scratch storage (`./.sphuling/spill/`).
 
 ---
 
 ## 4. Sub-2-Millisecond Cold Startup
-- **PySpark Startup:** **5,000 to 15,000 ms** (JVM boot, Py4J gateway handshake, internal spark daemon threads).
-- **Sphuling Startup:** **1.33 ms** (In-process Rust SessionContext initialization).
+- **PySpark Startup:** **5,000 to 15,000 ms** (JVM boot, Py4J gateway handshake, internal spark daemon initialization).
+- **Sphuling Startup:** **1.33 ms** (In-process DataFusion SessionContext initialization).
 
-This makes Sphuling ideal for interactive CLI tools, AWS Lambda / serverless functions, fast CI/CD test suites, and microservices where 10-second JVM startup latency is completely unacceptable.
+This makes Sphuling ideal for fast CI/CD unit testing, interactive CLI tools, AWS Lambda / serverless functions, and local notebooks where multi-second JVM startup latency destroys developer flow.
 
 ---
 
-## 5. Zero-Copy In-Process Memory Sharing
-PySpark requires serializing data into byte streams across TCP sockets to exchange data between Python and the JVM.
+## 5. Zero-Copy Arrow Memory Sharing
+PySpark requires serializing data into byte streams across TCP sockets (`Py4J`) when collecting rows or passing data between Python and the JVM.
 
-Sphuling utilizes the **Apache Arrow C Data Interface** (PyCapsule / C ABI). Python, Rust, and C++ access the exact same contiguous physical memory buffers via memory pointers. Calling `.toPandas()` or `.toArrow()` involves **zero memory copying**, achieving sub-millisecond data interchange.
+Sphuling utilizes the **Apache Arrow C Data Interface** (PyCapsule / C ABI). Python and Rust access the exact same contiguous physical memory buffers via memory pointers. Calling `.toArrow()` involves **zero memory copying**; exporting to Pandas achieves minimal overhead (zero-copy when ArrowDtype-compatible).
 
 ---
 
@@ -58,7 +58,7 @@ Sphuling embeds a SQL transpiler powered by `sqlglot`. It understands Spark-spec
 - Spark complex type navigations
 - Temporary views (`createOrReplaceTempView`)
 
-Queries written for Spark SQL execute directly on DataFusion and DuckDB without manual translation.
+Queries written for Spark SQL execute directly on DataFusion without manual SQL translation.
 
 ---
 
@@ -68,15 +68,16 @@ Queries written for Spark SQL execute directly on DataFusion and DuckDB without 
 ┌──────────────────────────────────────────────────────────────────┐
 │                      THE SPHULING SWEET SPOT                     │
 │                                                                  │
-│           PySpark Ergonomics (100% Syntax Parity)               │
+│           PySpark Ergonomics (Familiar DataFrame & SQL API)      │
 │                            +                                     │
-│         DuckDB & Polars Speed (SIMD Vectorized Rust)             │
+│           Native Rust Speed (SIMD Vectorized Execution)          │
 │                            +                                     │
 │            Zero JVM Overhead (Instant 1.33 ms Boot)              │
 │                            +                                     │
-│        Zero-Load Schema Engine (O(1) Metadata Discovery)         │
+│        Fast Schema Inspection (O(1) Metadata & Sniffers)         │
 │                            +                                     │
 │         Workstation Governor (Bounded RAM + Disk Spill)          │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
 

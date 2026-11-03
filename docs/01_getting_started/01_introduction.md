@@ -3,9 +3,9 @@
 ## What is Sphuling?
 **Sphuling** (Bengali: স্ফুলিঙ্গ / Sanskrit: स्फुलिंग, meaning *"an electric spark or burst of fire"*) is an ultra-fast, local-first analytics engine and library. 
 
-Under the package name `pysphuling` (with `sphuling` as the top-level namespace), it delivers **100% of the single-node developer ergonomics, DataFrame transformations, column expressions, analytical window functions, and Spark SQL query capabilities of Apache Spark / PySpark**—without requiring the Java Runtime Environment (JRE/JDK), cluster management infrastructure, or Py4J socket serialization.
+Under the package name `pysphuling` (with `sphuling` as the top-level namespace), it delivers **high-fidelity single-node PySpark compatibility for core DataFrame and Spark SQL workloads**—without requiring the Java Runtime Environment (JRE/JDK), cluster management infrastructure, or Py4J socket serialization.
 
-Powered under the hood by **Apache DataFusion** (a native Rust vectorized query engine), **Apache Arrow** (in-memory columnar format), and **DuckDB**, Sphuling runs directly in-process at the speed of C++ and Rust, achieving the same performance characteristics as DuckDB and Polars.
+Powered under the hood by **Apache DataFusion** (a native Rust vectorized query engine) and **Apache Arrow** (in-memory columnar format), Sphuling runs directly in-process at compiled speeds.
 
 ---
 
@@ -15,13 +15,13 @@ For over a decade, Apache Spark has been the de facto standard for enterprise da
 df.filter(F.col("salary") > 50000).groupBy("dept").agg(F.avg("salary"))
 ```
 
-However, running PySpark locally on developer laptops or single servers has always suffered from painful friction:
+However, running PySpark locally on developer laptops or single servers has always suffered from friction:
 1. **JVM Dependency & Sluggish Cold Start:** PySpark requires installing a Java Runtime Environment (JRE/JDK). Initializing a `SparkSession` on a developer workstation takes **5,000 to 15,000 milliseconds** just to start daemon JVM processes.
-2. **The Py4J Socket Serialization Bottleneck:** Python interacts with the JVM by marshaling objects back and forth across a local TCP socket (`Py4J`). Transforming or inspecting rows causes massive CPU spikes from serialization/deserialization.
+2. **The Py4J Gateway Overhead:** Python interacts with the JVM by marshaling calls across a local TCP socket (`Py4J`). While Catalyst plan execution runs in Java, data collection (`.collect()`), custom Python UDF execution, and error handling suffer from socket serialization latency.
 3. **Esoteric JVM Memory Tuning:** Single-node PySpark crashes easily with Out-Of-Memory (OOM) errors unless developers tune cryptic JVM flags (`-Xmx`, `spark.driver.memory`, `spark.executor.memory`, `spark.memory.fraction`, GC policies).
-4. **Hardware Underutilization:** Modern developer laptops and workstations possess 8 to 64 CPU cores, 16 to 128 GB of RAM, and fast PCIe Gen4/Gen5 NVMe SSDs. A distributed JVM architecture simply cannot match the raw throughput of a native, SIMD-vectorized columnar engine on this hardware.
+4. **Hardware Underutilization:** Modern developer laptops and workstations possess 8 to 64 CPU cores, 16 to 128 GB of RAM, and fast PCIe Gen4/Gen5 NVMe SSDs. A single-node JVM process with GC pauses cannot match the raw throughput of a native, SIMD-vectorized columnar engine on this hardware.
 
-**Sphuling solves all of this.** It preserves 100% of the PySpark syntax you already know, but replaces the entire runtime with native Rust/C++ execution engines communicating in-process via zero-copy Apache Arrow memory.
+**Sphuling bridges this divide.** It preserves the familiar PySpark syntax you already know, executing queries via native Rust threads communicating in-process via zero-copy Apache Arrow memory.
 
 ---
 
@@ -31,17 +31,19 @@ However, running PySpark locally on developer laptops or single servers has alwa
 | :--- | :--- | :--- |
 | **Session Cold Startup** | 5,000 – 15,000 ms | **1.33 ms** (Instantaneous) |
 | **JVM Requirement** | Mandatory (JRE 8/11/17) | **None** (Pure native binary wheels) |
-| **Execution Engine** | JVM + Py4J TCP Socket | **Native Rust (Apache DataFusion) + DuckDB** |
-| **Data Interchange** | Socket marshaling & pickling | **Zero-Copy Arrow C Data Interface** |
-| **Schema Introspection** | Often triggers accidental data scans | **Universal Zero-Load ($O(1)$ footer reading)** |
+| **Execution Engine** | JVM + Local Schedulers | **Native Rust (Apache DataFusion)** |
+| **Data Interchange** | Py4J Socket marshaling | **Zero-Copy Arrow C Data Interface** |
+| **Schema Introspection** | Often triggers full data scans | **Metadata Footers ($O(1)$) & Sample Sniffers** |
 | **Workstation Resource Control** | Complex JVM heap flags | **Simple `cores` & `memory` bounds + auto spill** |
 | **Installation Footprint** | > 500 MB (Spark + Java) | **Single lightweight `pip install`** |
 
 ---
 
 ## When Should You Use Sphuling?
+- **CI/CD Unit Testing:** Run PySpark pipeline test suites in milliseconds without spinning up a heavy JVM in CI runners.
 - **Local Data Engineering & Pipeline Prototyping:** Build, test, and debug your PySpark pipelines locally on your workstation with instant feedback (<15 ms query iteration cycles).
-- **Embedded Analytics in Python Applications:** Run sophisticated DataFrame workflows and Spark SQL inside web apps (FastAPI, Flask), automation scripts, or CLI utilities without needing heavy background daemon processes.
-- **Single-Node Production Workloads:** Process datasets from megabytes up to hundreds of gigabytes directly on a single virtual machine or cloud instance (e.g. AWS EC2, GCP Compute, Hetzner) faster and far cheaper than spinning up a multi-node Spark cluster.
-- **Educational & University Courses:** Learn and teach Apache Spark syntax and distributed-style data processing without the headache of configuring Java, Hadoop home paths, or cluster configs.
+- **Serverless & Lambda ETL:** Deploy PySpark transformation logic in lightweight container images without Java runtime bloat.
+- **Embedded Analytics in Python Applications:** Run DataFrame workflows and Spark SQL inside web apps (FastAPI, Flask) or CLI utilities without background daemon processes.
+- **Educational & University Courses:** Learn and teach Apache Spark syntax and DataFrame concepts without the headache of configuring Java, Hadoop home paths, or cluster configurations.
+
 

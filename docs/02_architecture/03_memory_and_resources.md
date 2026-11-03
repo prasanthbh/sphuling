@@ -76,10 +76,10 @@ Sphuling interfaces with Apache DataFusion's native memory management layer:
                                   Merge spilled runs on read
 ```
 
-### The `GreedyMemoryPool`
-- Tracks every buffer allocated by aggregations, sort operations, and hash tables.
-- Guarantees that query execution stays strictly within the byte limit derived from `sphuling.executor.memory`.
-- If memory demands spike, it triggers the registered disk manager instead of throwing an unrecoverable system `OutOfMemoryError`.
+### The `GreedyMemoryPool` & Operator Spilling Scope
+- **Tracked Allocations:** Tracks buffers allocated by relational execution operators, specifically external sorting, hash joins, and hash aggregations.
+- **Operator-Level Spilling:** When execution demands exceed `sphuling.executor.memory`, supported operators write intermediate partition runs to disk instead of failing immediately.
+- **Memory Boundaries:** Note that this pool governs *active query execution memory*. Large in-memory Arrow tables or Pandas DataFrames held in user Python variables reside in process memory and are not managed by the query engine's disk manager.
 
 ---
 

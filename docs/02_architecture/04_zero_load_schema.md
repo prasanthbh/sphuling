@@ -1,12 +1,17 @@
-# Universal Zero-Load Schema Extraction Engine
+# Fast Schema Inspection & Extraction Engine
 
-A notorious problem in data engineering is that discovering a dataset's schema often triggers accidental full-table scans. For example, reading a 100 GB CSV or JSON file in PySpark with `inferSchema=True` often reads the **entire dataset** just to determine that column `salary` is a float.
+A notorious problem in data engineering is that discovering a dataset's schema often triggers accidental full-table scans. For example, reading a 100 GB CSV or JSON file in PySpark with `inferSchema=True` often reads the **entire dataset** just to determine column types.
 
-Sphuling solves this with its **Universal Zero-Load Schema Extraction Engine** (`SchemaInspector`), which discovers schemas across all supported formats in milliseconds without scanning full datasets.
+Sphuling solves this with its **Fast Schema Inspection Engine** (`SchemaInspector`), which discovers schemas across all supported formats in milliseconds without scanning full datasets.
 
 ---
 
-## 1. Zero-Load Extraction Architecture
+## 1. Schema Discovery Architecture
+
+Sphuling distinguishes between three types of schema acquisition:
+1. **Metadata-Based Schema Extraction ($O(1)$):** Reads embedded binary schemas from Parquet and Arrow file footers. Exact, instantaneous, and zero data rows read.
+2. **Sample-Based Schema Inference:** For text-based formats (CSV, JSON), reads a bounded initial sample window ($\le 64$ KB or first $N$ rows) to deduce column names and types without scanning gigabytes of data.
+3. **Explicit Schema Declaration:** Allows users to pass a known `StructType` or DDL string to bypass inference entirely.
 
 ```
                        [ ANY DATA SOURCE ]
@@ -14,10 +19,10 @@ Sphuling solves this with its **Universal Zero-Load Schema Extraction Engine** (
          +----------------------+----------------------+
          |                      |                      |
          v                      v                      v
-[ Columnar Formats ]       [ Text / Delimited ]    [ Database / Logs ]
-  Parquet, Arrow, ORC        CSV, TSV, JSON, NDJSON  DuckDB, SQLite, Delta
+[ Columnar Metadata ]       [ Text / Delimited ]    [ Database / Catalogs ]
+  Parquet, Arrow IPC          CSV, TSV, JSON, NDJSON  SQLite, SQL Tables
          |                      |                      |
-  Read File Footer Only    Bounded Byte/Row Sniffer    Read Log or LIMIT 0
+  Read File Footer Only    Bounded Byte/Row Sniffer    Read Schema / LIMIT 0
     (A few KB read)         (First 64 KB / N rows)     (Zero data rows read)
          \                      |                      /
           \                     |                     /
@@ -27,6 +32,9 @@ Sphuling solves this with its **Universal Zero-Load Schema Extraction Engine** (
                 Exact StructType Schema Object
             (Available in < 5 ms, 0 full scans)
 ```
+
+> [!NOTE]
+> For text formats (CSV and JSON), sample-based inference deduces types from the first sample batch. If late-occurring data in an unpartitioned file contains mixed types, declaring an explicit schema (`schema=StructType(...)` or `StructType.fromDDL(...)`) is recommended for production pipelines.
 
 ---
 

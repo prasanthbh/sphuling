@@ -1,5 +1,21 @@
 # Timeline of Development & Discoveries
 
+## 2026-11-04: Full Documentation & README Remediation Following Technical Reviews
+- **Claim Calibration & Realism**:
+  - Toned down "100% PySpark Compatibility" to "High-fidelity single-node PySpark compatibility for core DataFrame and SQL workloads".
+  - Created a dedicated, transparent compatibility matrix: `docs/04_api_reference/10_compatibility_matrix.md`, covering transformations, actions, `Window`, functions, data types, and deliberate exclusions (RDD, streaming).
+  - Clarified execution core: established Apache DataFusion as the active physical execution engine, clarifying memory pool behavior and operator-specific disk spilling.
+  - Corrected zero-copy claims: explicitly distinguished Arrow C Data Interface (zero-copy) from Pandas conversion (minimal copy / ArrowDtype).
+  - Refined schema discovery terminology: separated metadata footer inspection ($O(1)$) for Parquet/Arrow from sample-based inference ($\le 64$ KB) for CSV/JSON.
+- **Deep-Dive Competitor Expansions**:
+  - Added dedicated comparative analysis for **Sphuling vs. DuckDB (Native SQL/Relational)** and **Sphuling vs. DuckDB Spark (`duckdb.experimental.spark`)**.
+  - Documented DuckDB Spark's missing capabilities (no `Window` class, no `Column.over()`, no `df.na`, no `df.stat`, stubbed `SparkConf`).
+- **Benchmark Precision**:
+  - Updated `tests/benchmarks/benchmark_speed.py` to output platform and CPU details, clarifying in-memory synthetic workloads vs. disk I/O.
+- **Validation**:
+  - Executed benchmark: cold startup in 1.19 ms, in-memory 1M-row filter+agg in 6.40 ms.
+  - Full test suite verified (34/34 passing).
+
 ## 2026-11-03: README.md Complete Overhaul & GitHub Documentation Links
 - **README Structure Revamp**:
   - Structured the README with the 5 requested sections: Introduction, Why You Should Use It, Competitor Comparisons (matrix & deep-dives), Installation & Usage (native API, drop-in PySpark migration, Spark SQL), and Full Documentation Index.

@@ -21,16 +21,18 @@ result.show()
 
 ### After (Sphuling Drop-in):
 ```python
-# Simply replace 'import pyspark' with 'import pysphuling as pyspark'!
+# Swap imports to pysphuling:
 import pysphuling as pyspark
-from pyspark.sql import SparkSession, functions as F, types as T, Window
+from pysphuling.sql import SparkSession, functions as F, types as T, Window
 
-# Everything else remains 100% IDENTICAL:
+# Your pipeline runs with zero JVM overhead:
 spark = SparkSession.builder.appName("MyPipeline").getOrCreate()
 df = spark.read.parquet("input_data/")
 result = df.filter(F.col("salary") > 50000).groupBy("dept").agg(F.avg("salary"))
 result.show()
 ```
+
+*(See the full [PySpark Compatibility Matrix](../04_api_reference/10_compatibility_matrix.md) for details on supported methods, functions, and semantic differences).*
 
 ---
 

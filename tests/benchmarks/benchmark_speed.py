@@ -1,5 +1,8 @@
 """High-performance speed and throughput benchmark for Sphuling."""
 
+import os
+import platform
+import tempfile
 import time
 from pysphuling.sql import SphulingSession, functions as F
 
@@ -7,27 +10,29 @@ from pysphuling.sql import SphulingSession, functions as F
 def run_benchmark():
     print("=" * 60)
     print("  Sphuling (pysphuling) High-Performance Benchmark")
+    print(f"  Platform: {platform.system()} {platform.release()} ({platform.machine()})")
+    print(f"  Physical CPU Cores: {os.cpu_count()}")
     print("=" * 60)
 
-    # 1. Cold start time
+    # 1. Cold start time (SessionContext initialization)
     t0 = time.perf_counter()
     sphuling = (
         SphulingSession.builder
         .appName("BenchmarkApp")
         .master("local[*]")
-        .config("sphuling.executor.cores", "8")
+        .config("sphuling.executor.cores", str(os.cpu_count() or 8))
         .config("sphuling.executor.memory", "8g")
         .getOrCreate()
     )
     init_time = (time.perf_counter() - t0) * 1000
     print(f"[*] Engine startup latency: {init_time:.2f} ms (PySpark standard JVM is 5,000 - 15,000 ms)")
 
-    # 2. Sequence generation: 1,000,000 rows
+    # 2. In-memory synthetic sequence generation: 1,000,000 rows
     N = 1_000_000
     t0 = time.perf_counter()
     df = sphuling.range(N)
     gen_time = (time.perf_counter() - t0) * 1000
-    print(f"[*] Lazy 1,000,000 rows range created in: {gen_time:.2f} ms")
+    print(f"[*] Lazy in-memory 1,000,000 rows range created in: {gen_time:.2f} ms")
 
     # 3. Vectorized transformations & aggregations over 1,000,000 rows
     t0 = time.perf_counter()
@@ -50,12 +55,11 @@ def run_benchmark():
     t0 = time.perf_counter()
     results = processed.collect()
     exec_time = (time.perf_counter() - t0) * 1000
-    print(f"[*] Vectorized execution across 1,000,000 rows completed in: {exec_time:.2f} ms")
+    print(f"[*] In-memory filter + aggregation across 1,000,000 rows completed in: {exec_time:.2f} ms")
     print("\nBenchmark Results Table:")
     processed.show()
 
-    # 5. Zero-load schema introspection speed test
-    import tempfile, os
+    # 5. Fast metadata schema introspection speed test
     with tempfile.TemporaryDirectory() as tmpdir:
         pq_path = os.path.join(tmpdir, "bench.parquet")
         processed.write.parquet(pq_path)
@@ -63,7 +67,7 @@ def run_benchmark():
         t0 = time.perf_counter()
         schema = sphuling.read.schema_of(pq_path)
         schema_time = (time.perf_counter() - t0) * 1000
-        print(f"[*] Zero-Load Parquet Footer Schema extraction: {schema_time:.2f} ms (0 data blocks read)")
+        print(f"[*] Metadata Parquet Footer Schema extraction: {schema_time:.2f} ms (0 data blocks read)")
 
     print("=" * 60)
     print("  Benchmark Completed Successfully!")
