@@ -35,6 +35,14 @@ sphuling = (
 
 *(Note: Legacy `spark.*` configuration keys such as `spark.executor.cores` and `spark.executor.memory` are automatically recognized and translated).*
 
+### `master("local[N]")` vs. `sphuling.executor.cores`
+
+Both properties govern CPU execution concurrency, with specific precedence:
+1. **`master("local[N]")`** is the PySpark master URL shorthand specifying $N$ worker threads (or all cores with `local[*]`).
+2. **`sphuling.executor.cores`** (or `spark.executor.cores`) is the explicit granular configuration parameter. If provided, it overrides the core count defined in `master(...)`.
+3. In Sphuling, both configure DataFusion's `datafusion.execution.target_partitions` within a native in-process **Tokio work-stealing multithreaded runtime**. Sphuling does not launch separate OS executor processes, avoiding IPC serialization, socket overhead, and memory fragmentation.
+
+
 ---
 
 ## 2. Memory Pool Mechanics
