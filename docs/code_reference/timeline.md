@@ -1,5 +1,12 @@
 # Timeline of Development & Discoveries
 
+## 2026-11-03: README.md Complete Overhaul & GitHub Documentation Links
+- **README Structure Revamp**:
+  - Structured the README with the 5 requested sections: Introduction, Why You Should Use It, Competitor Comparisons (matrix & deep-dives), Installation & Usage (native API, drop-in PySpark migration, Spark SQL), and Full Documentation Index.
+  - Linked all documentation chapters and agent skills directly to GitHub repository URLs (`https://github.com/prasanthbh/sphuling/blob/main/docs/...`).
+- **Validation**:
+  - Verified formatting, links, and markdown structure.
+
 ## 2026-11-03: Relative Path Standardization Across All Documentation
 - **Path Normalization**:
   - Audited all markdown documentation and source code to eliminate absolute paths and `file:///` hardcoded local URIs.
